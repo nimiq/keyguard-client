@@ -1,37 +1,43 @@
 'use strict'
 
 class KeyStoreClient {
-	
-	static create(needUiCallback) {
-		const embeddedApi = KeyStoreClient._getApi(KeyStoreClient._createIframe());
-		needUiCallback = needUiCallback || KeyStoreClient._defaultUi.bind(this);
-		
-		const client = {};
-		for (const method in embeddedApi) {
-			if (embeddedApi.hasOwnProperty(method))
-				client[method] = KeyStoreClient._proxyMethod(method, embeddedApi, needUiCallback);
-		}
-		return client;
+
+	static create(needUiCallback, usePopup = true) {
+		const client = new KeyStoreClient(needUiCallback, usePopup);
+		return client.publicApi;
 	}
 
-	static _proxyMethod(method, embeddedApi, needUiCallback) {
+	constructor(needUiCallback, usePopup = true) {
+		this.popup = usePopup;
+		this.iframe = this._createIframe();
+		this.embeddedApi = this._getApi(this.iframe);
+		this.needUiCallback = needUiCallback || this._defaultUi.bind(this);
+		this.publicApi = {};
+
+		for (const methodName in this.embeddedApi) {
+			if (this.embeddedApi.hasOwnProperty(methodName)) {
+				let method = this._proxyMethod(methodName);
+				method.secure = this._proxySecureMethod(methodName);
+				this.publicApi[methodName] = method;
+			}
+		}
+	}
+
+	_proxyMethod(methodName) {
 		return async () => {
+			const method = this.embeddedApi[methodName];
+
+			if (this._willRequireSecure(methodName, arguments))
+				return method.secure.call(arguments);
+
 			try {
-				return await embeddedApi[method].call(arguments);
-			} catch (error) {
+				return await method.call(arguments);
+			}
+			catch (error) {
 				if (error === 'need-ui') {
-					const confirmed = await needUiCallback(method);
+					const confirmed = await this.needUiCallback(methodName);
 					if (confirmed) {
-						try {
-							const apiWindow = window.open(KeyStoreClient.KEYSTORE_URL, 'keystore'),
-								  secureApi = KeyStoreClient._getApi(apiWindow),
-								  result = await secureApi[method].call(arguments);
-							apiWindow.close();
-							return result;
-						} catch (error) {
-							console.log(error);
-							throw error;
-						}
+							return method.secure.call(arguments);
 					}
 					else throw 'Denied by user';
 				}
@@ -39,19 +45,44 @@ class KeyStoreClient {
 			}
 		}
 	}
-	
-	static _defaultUi(method) {
-		return new Promise((resolve, reject) => { resolve(window.confirm(`Confirm "${ method }"`)); });
+
+	_proxySecureMethod() {
+		return async () => {
+			if (this.popup) { // window.open
+				const apiWindow = window.open(KeyStoreClient.KEYSTORE_URL, "keystore"),
+						  secureApi = KeyStoreClient._getApi(apiWindow),
+						  result = await secureApi[methodName].call(arguments);
+				apiWindow.close();
+				return result;
+			} else { // top level navigation
+				const returnTo = encodeURIComponent(window.location);
+				//window.location = `${ KeyStoreClient.KEYSTORE_URL }?returnTo=${ returnTo }`;
+				throw "not implemented";
+			}
+		}
 	}
 
-	static _getApi(origin) {
+	_willRequireSecure(method, args) {
+		return false;
+	}
+
+	_defaultUi(methodName) {
+		return new Promise((resolve, reject) => { resolve(window.confirm("You will be forwarded to securily confirm this action.")); });
+	}
+
+	_getApi(origin) {
 		console.log("Not implemented: _getApi");
 		return { test: _ => "test", needUi: _ => { if (origin) return "ok!"; throw "need-ui" } };
 	}
-	
-	static _createIframe() {
+
+	_createIframe() {
 		console.log("Not implemented: _createIframe");
-		return null;
+		let iframe = document.createElement("iframe");
+		iframe.style.display="none";
+		iframe.src = KeyStoreClient.KEYSTORE_URL;
+		iframe.name = "keystore";
+		document.body.append(iframe);
+		return iframe;
 	}
 }
 
