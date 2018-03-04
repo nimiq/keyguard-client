@@ -4,7 +4,7 @@ export default class KeyStoreClient {
 	static async create(src, needUiCallback, usePopup = true) {
 		const client = new KeyStoreClient(src, needUiCallback, usePopup);
 
- 		client.embeddedApi = await client._getApi(this.iframe);
+ 		client.embeddedApi = await client._getApi(client.$iframe);
 
         for (const methodName in client.embeddedApi) {
             if (client.embeddedApi.hasOwnProperty(methodName)) {
@@ -27,7 +27,7 @@ export default class KeyStoreClient {
 	constructor(src, needUiCallback, usePopup = true) {
 		this._keystoreSrc = src;
 		this.popup = usePopup;
-		this.iframe = this._createIframe();
+		this.$iframe = this._createIframe();
         this.needUiCallback = needUiCallback || this._defaultUi.bind(this);
         this.publicApi = {};
 	}
@@ -85,7 +85,6 @@ export default class KeyStoreClient {
 
 	async _getApi(origin) {
 		return await RPC.Client(origin, 'KeystoreApi');
-		//return { test: _ => "test", needUi: _ => { if (origin) return "ok!"; throw "need-ui" } };
 	}
 	
 	_createIframe(src) {
