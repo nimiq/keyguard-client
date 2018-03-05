@@ -3,18 +3,8 @@ import { RPC } from '/libraries/boruca-messaging/src/boruca.js';
 export default class KeyStoreClient {
 	static async create(src, needUiCallback, usePopup = true) {
 		const client = new KeyStoreClient(src, needUiCallback, usePopup);
-
- 		client.embeddedApi = await client._getApi(client.$iframe.contentWindow);
-
-        for (const methodName in client.embeddedApi) {
-            if (client.embeddedApi.hasOwnProperty(methodName)) {
-                let method = this._proxyMethod(methodName);
-                method.secure = this._proxySecureMethod(methodName);
-                client.publicApi[methodName] = method;
-            }
-        }
-
-        return client.publicApi;
+		const embeddedApi = await KeyStoreClient._getApi(client.$iframe.contentWindow)
+		return client.wrapApi(embeddedApi);
 	}
 
     /**
@@ -28,8 +18,21 @@ export default class KeyStoreClient {
 		this._keystoreSrc = src;
 		this.popup = usePopup;
 		this.$iframe = this._createIframe();
-    this.needUiCallback = needUiCallback || this._defaultUi.bind(this);
-    this.publicApi = {};
+	    this.needUiCallback = needUiCallback || this._defaultUi.bind(this);
+	    this.publicApi = {};
+	}
+
+	wrapApi(embeddedApi) {
+ 		this.embeddedApi = embeddedApi;
+        for (const methodName in this.embeddedApi) {
+			console.log(methodName);
+            if (this.embeddedApi.hasOwnProperty(methodName)) {
+                let method = this._proxyMethod(methodName);
+                method.secure = this._proxySecureMethod(methodName);
+                this.publicApi[methodName] = method;
+            }
+        }
+		return this.publicApi;
 	}
 
 	/** @param {string} methodName
@@ -83,7 +86,7 @@ export default class KeyStoreClient {
 		return new Promise((resolve, reject) => { resolve(window.confirm("You will be forwarded to securely confirm this action.")); });
 	}
 
-	async _getApi(origin) {
+	static async _getApi(origin) {
 		return await RPC.Client(origin, 'KeystoreApi');
 	}
 
