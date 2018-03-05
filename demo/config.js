@@ -1,6 +1,6 @@
 const localConfig = {
-    keystoreSrc: location.origin,
-    networkSrc: location.origin
+    keystoreSrc: `${location.origin}:8080/libraries/keystore`,
+    networkOrigin: location.origin
 }
 
 const liveConfig = {
