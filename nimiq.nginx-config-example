@@ -1,0 +1,34 @@
+# 1 copy this file to "/etc/nginx/sites-available/nimiq"
+# 2 adjust the root to your nimiq.github.io repo location
+# 3 make a symlink: "ln -s /etc/nginx/sites-available/nimiq /etc/nginx/sites-enabled/nimiq"
+# 4 confirm that your config is valid: "sudo service nginx configtest"
+# 5 restart nginx: "sudo service nginx restart"
+
+server {
+	listen 80;
+	server_name nimiq;
+
+	# edit here
+	root /home/...../nimiq/nimiq.github.io/;
+
+	index index.html;
+
+	location / {
+		autoindex on;
+		try_files $uri $uri/ =404;
+	}
+}
+
+server {
+	listen 8080;
+	server_name secure;
+
+	# and here
+	root /home/...../nimiq.github.io/;
+
+	index keystore.html index.html index.htm;
+
+	location / {
+		try_files keystore.html $uri $uri/ =404;
+	}
+}
