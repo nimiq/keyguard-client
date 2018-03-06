@@ -1,10 +1,12 @@
 import { RPC } from '/libraries/boruca-messaging/src/boruca.js';
+import Policy from '/libraries/keystore/policy.js';
 
-export default class KeyStoreClient {
+export default class KeystoreClient {
 	static async create(src, needUiCallback, usePopup = true) {
-		const client = new KeyStoreClient(src, needUiCallback, usePopup);
-		const embeddedApi = await KeyStoreClient._getApi(client.$iframe.contentWindow)
-		return client.wrapApi(embeddedApi);
+		const client = new KeystoreClient(src, needUiCallback, usePopup);
+		const embeddedApi = await KeystoreClient._getApi(client.$iframe.contentWindow)
+		const wrappedApi = client.wrapApi(embeddedApi);
+		return wrappedApi;
 	}
 
     /**
@@ -20,18 +22,27 @@ export default class KeyStoreClient {
 		this.$iframe = this._createIframe();
 	    this.needUiCallback = needUiCallback || this._defaultUi.bind(this);
 	    this.publicApi = {};
+		this.policy = null;
 	}
 
 	wrapApi(embeddedApi) {
  		this.embeddedApi = embeddedApi;
-        for (const methodName in this.embeddedApi) {
-			console.log(methodName);
-            if (this.embeddedApi.hasOwnProperty(methodName)) {
-                let method = this._proxyMethod(methodName);
-                method.secure = this._proxySecureMethod(methodName);
-                this.publicApi[methodName] = method;
-            }
+        for (const methodName of this.embeddedApi.availableMethods) {
+            let method = this._proxyMethod(methodName);
+            method.secure = this._proxySecureMethod(methodName);
+            this.publicApi[methodName] = method;
         }
+
+		// keep track of policies
+		const apiAuthorize = this.publicApi.authorize.bind(this.publicApi);
+		this.publicApi.authorize = async requiredPolicy => {
+			return this.policy = await apiAuthorize(requiredPolicy);
+		}
+		const apiGetPolicy = this.publicApi.getPolicy.bind(this.publicApi);
+		this.publicApi.getPolicy = async () => {
+			return this.policy = await apiGetPolicy();
+		}
+
 		return this.publicApi;
 	}
 
@@ -41,16 +52,19 @@ export default class KeyStoreClient {
 	 * */
 	_proxyMethod(methodName) {
 		return async () => {
-			const method = this.embeddedApi[methodName];
+			if (this.policy && !this.policy.allows(methodName, arguments))
+				throw `Not allowed to call ${methodName}.`;
 
-			if (this._willRequireSecure(methodName, arguments))
-				return method.secure.call(arguments);
+			const method = this.embeddedApi[methodName].bind(this.embeddedApi);
+
+			if (this.policy && this.policy.needsUi(methodName, arguments))
+				return await method.secure.call(arguments);
 
 			try {
 				return await method.call(arguments);
 			}
 			catch (error) {
-				if (error === 'need-ui') {
+				if (error === 'needs-ui') {
 					const confirmed = await this.needUiCallback(methodName);
 					if (confirmed) {
 							return method.secure.call(arguments);
@@ -72,14 +86,10 @@ export default class KeyStoreClient {
 				return result;
 			} else { // top level navigation
 				const returnTo = encodeURIComponent(window.location);
-				//window.location = `${ KeyStoreClient.KEYSTORE_URL }?returnTo=${ returnTo }`;
+				//window.location = `${ KeystoreClient.KEYSTORE_URL }?returnTo=${ returnTo }`;
 				throw "not implemented";
 			}
 		}
-	}
-
-	_willRequireSecure(method, args) {
-		return false;
 	}
 
 	_defaultUi(methodName) {
