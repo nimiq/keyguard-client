@@ -1,8 +1,9 @@
 # 1 copy this file to "/etc/nginx/sites-available/nimiq"
 # 2 adjust the root to your nimiq.github.io repo location
-# 3 make a symlink: "ln -s /etc/nginx/sites-available/nimiq /etc/nginx/sites-enabled/nimiq"
-# 4 confirm that your config is valid: "sudo service nginx configtest"
-# 5 restart nginx: "sudo service nginx restart"
+# 3 make sure that the entire path is "chmod o+xr"
+# 4 make a symlink: "ln -s /etc/nginx/sites-available/nimiq /etc/nginx/sites-enabled/nimiq"
+# 5 confirm that your config is valid: "sudo service nginx configtest"
+# 6 restart nginx: "sudo service nginx restart"
 
 server {
 	listen 80;
