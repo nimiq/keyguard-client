@@ -30,14 +30,16 @@ export default class KeystoreClient {
         for (const methodName of this.embeddedApi.availableMethods) {
             let method = this._proxyMethod(methodName);
             method.secure = this._proxySecureMethod(methodName);
+			method.isAllowed = () => (!!this.policy && this.policy.allows(methodName, arguments));
             this.publicApi[methodName] = method;
         }
 
 		// keep track of policies
-		const apiAuthorize = this.publicApi.authorize.bind(this.publicApi);
+		const apiAuthorize = this.publicApi.authorize.secure.bind(this.publicApi.secure);
 		this.publicApi.authorize = async requiredPolicy => {
 			return this.policy = await apiAuthorize(requiredPolicy);
 		}
+
 		const apiGetPolicy = this.publicApi.getPolicy.bind(this.publicApi);
 		this.publicApi.getPolicy = async () => {
 			return this.policy = await apiGetPolicy();
@@ -76,12 +78,12 @@ export default class KeystoreClient {
 		}
 	}
 
-	_proxySecureMethod() {
+	_proxySecureMethod(methodName) {
 		return async () => {
 			if (this.popup) { // window.open
-				const apiWindow = window.open(this._keystoreSrc, "keystore"),
-						  secureApi = await this._getApi(apiWindow),
-						  result = await secureApi[methodName].call(arguments);
+				const apiWindow = window.open(this._keystoreSrc, "keystore");
+				const secureApi = await KeystoreClient._getApi(apiWindow);
+				const result = await secureApi[methodName].call(arguments);
 				apiWindow.close();
 				return result;
 			} else { // top level navigation
