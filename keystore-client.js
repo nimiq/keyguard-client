@@ -37,7 +37,9 @@ export default class KeystoreClient {
 		// keep track of policies
 		const apiAuthorize = this.publicApi.authorize.secure.bind(this.publicApi.secure);
 		this.publicApi.authorize = async requiredPolicy => {
-			return this.policy = await apiAuthorize(requiredPolicy);
+			const success = await apiAuthorize(requiredPolicy);
+			this.policy = success ? requiredPolicy : null;
+			return success;
 		}
 
 		const apiGetPolicy = this.publicApi.getPolicy.bind(this.publicApi);
@@ -81,9 +83,10 @@ export default class KeystoreClient {
 	_proxySecureMethod(methodName) {
 		return async () => {
 			if (this.popup) { // window.open
-				const apiWindow = window.open(this._keystoreSrc, "keystore");
+				const apiWindow = window.open(this._keystoreSrc);
 				const secureApi = await KeystoreClient._getApi(apiWindow);
-				const result = await secureApi[methodName].call(arguments);
+				const method = secureApi[methodName].bind(secureApi);
+				const result = await method.call(arguments);
 				apiWindow.close();
 				return result;
 			} else { // top level navigation
