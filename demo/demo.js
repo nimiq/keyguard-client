@@ -10,20 +10,30 @@ window.Policy = Policy;
     const keystoreApi = window.keystoreClient = await KeystoreClient.create(config.keystoreSrc);
     console.log("Keystore client: ", keystoreApi);
 
-    const limit = 1000;
-    const requiredPolicy = Policy.get("spending-limit", limit);
-    console.log("requiredPolicy", requiredPolicy);
 	const grantedPolicy = await keystoreApi.getPolicy();
     console.log("grantedPolicy", grantedPolicy);
 
-	if (!requiredPolicy.equals(grantedPolicy)) {
-    	const authorizedPolicy = await keystoreApi.authorize(requiredPolicy);
-        console.log("authorizedPolicy", authorizedPolicy);
+    const requiredPolicy = Policy.get("spending-limit", 1000);
+    console.log("requiredPolicy", requiredPolicy);
 
-    	if (!requiredPolicy.equals(authorizedPolicy))
-            throw { message: "KeystoreClient: Policies don't match", policies: [requiredPolicy, grantedPolicy, authorizedPolicy] }
-    }
+	if (!requiredPolicy.equals(grantedPolicy)) {
+        request.style.display = "block";
+        authorize.addEventListener('click', async e => {
+            requiredPolicy.limit = ~~limit.value
+            console.log("requiredPolicy", requiredPolicy);
+        	if (!await keystoreApi.authorize(requiredPolicy)) {
+                throw { message: "KeystoreClient: Policies don't match", policies: [requiredPolicy, grantedPolicy, authorizedPolicy] }
+            }
+            else cont();
+        });
+    } else cont();
+})();
+
+async function cont() {
+    console.log("Authorized! Continue...");
+    const keystoreApi = window.keystoreClient;
+    request.style.display = "none";
 
     const addresses = keystoreApi.getAddresses();
     console.log(addresses);
-})();
+}
