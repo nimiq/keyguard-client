@@ -32,6 +32,6 @@ async function cont() {
     const keystoreApi = window.keystoreClient;
     request.style.display = "none";
 
-    const addresses = await keystoreApi.getAddresses();
-    console.log(addresses);
+    const accounts = await keystoreApi.getAccounts();
+    console.log(accounts);
 }
