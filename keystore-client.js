@@ -27,14 +27,14 @@ export default class KeystoreClient {
 	async _wrapApi() {
  		this.embeddedApi = await this._getApi(this.$iframe.contentWindow);
         for (const methodName of this.embeddedApi.availableMethods) {
-            const method = this._proxyMethod(methodName);
-            method.secure = this._proxySecureMethod(methodName);
-			method.isAllowed = () => (this.policy && this.policy.allows(methodName, arguments));
-            this.publicApi[methodName] = method;
+            const proxy = this._proxyMethod(methodName);
+            proxy.secure = this._proxySecureMethod(methodName);
+			proxy.isAllowed = () => (this.policy && this.policy.allows(methodName, arguments));
+            this.publicApi[methodName] = proxy;
         }
 
-		// keep an instance of the latest authorized policy to predict if user interaction will be needed when calling API methods.
-		//const apiAuthorize = this.publicApi.authorize.secure.bind(this.publicApi.authorize);
+		// intercepting "authorize" and "getPolicy" for keeping an instance of the latest authorized policy
+		// to predict if user interaction will be needed when calling API methods.
 		const apiAuthorize = this.publicApi.authorize.secure;
 		this.publicApi.authorize = async requiredPolicy => {
 			const success = await apiAuthorize(requiredPolicy);
@@ -42,7 +42,6 @@ export default class KeystoreClient {
 			return success;
 		}
 
-		//const apiGetPolicy = this.publicApi.getPolicy.bind(this.publicApi);
 		const apiGetPolicy = this.publicApi.getPolicy;
 		this.publicApi.getPolicy = async () => {
 			return this.policy = Policy.parse(await apiGetPolicy());
