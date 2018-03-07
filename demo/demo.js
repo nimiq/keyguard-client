@@ -14,7 +14,6 @@ window.Policy = Policy;
     console.log("grantedPolicy", grantedPolicy);
 
     const requiredPolicy = Policy.get("spending-limit", 1000);
-    console.log("requiredPolicy", requiredPolicy);
 
 	if (!requiredPolicy.equals(grantedPolicy)) {
         request.style.display = "block";
@@ -34,6 +33,6 @@ async function cont() {
     const keystoreApi = window.keystoreClient;
     request.style.display = "none";
 
-    const addresses = keystoreApi.getAddresses();
+    const addresses = await keystoreApi.getAddresses();
     console.log(addresses);
 }

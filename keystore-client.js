@@ -4,16 +4,15 @@ import Policy from '/libraries/keystore/policy.js';
 export default class KeystoreClient {
 	static async create(src, needUiCallback, usePopup = true) {
 		const client = new KeystoreClient(src, needUiCallback, usePopup);
-		const embeddedApi = await KeystoreClient._getApi(client.$iframe.contentWindow)
-		const wrappedApi = client.wrapApi(embeddedApi);
+		const wrappedApi = client._wrapApi();
 		return wrappedApi;
 	}
 
     /**
 	 * @private
 	 *
+     * @param {function} src URI of secure origin aka key guard aka key dude.
      * @param {function} needUiCallback
-     * @param {any} api
      * @param {boolean} usePopup
      */
 	constructor(src, needUiCallback, usePopup = true) {
@@ -25,26 +24,28 @@ export default class KeystoreClient {
 		this.policy = null;
 	}
 
-	wrapApi(embeddedApi) {
- 		this.embeddedApi = embeddedApi;
+	async _wrapApi() {
+ 		this.embeddedApi = await this._getApi(this.$iframe.contentWindow);
         for (const methodName of this.embeddedApi.availableMethods) {
-            let method = this._proxyMethod(methodName);
+            const method = this._proxyMethod(methodName);
             method.secure = this._proxySecureMethod(methodName);
-			method.isAllowed = () => (!!this.policy && this.policy.allows(methodName, arguments));
+			method.isAllowed = () => (this.policy && this.policy.allows(methodName, arguments));
             this.publicApi[methodName] = method;
         }
 
-		// keep track of policies
-		const apiAuthorize = this.publicApi.authorize.secure.bind(this.publicApi.secure);
+		// keep an instance of the latest authorized policy to predict if user interaction will be needed when calling API methods.
+		//const apiAuthorize = this.publicApi.authorize.secure.bind(this.publicApi.authorize);
+		const apiAuthorize = this.publicApi.authorize.secure;
 		this.publicApi.authorize = async requiredPolicy => {
-			const success = apiAuthorize(requiredPolicy);
+			const success = await apiAuthorize(requiredPolicy);
 			this.policy = success ? requiredPolicy : null;
 			return success;
 		}
 
-		const apiGetPolicy = this.publicApi.getPolicy.bind(this.publicApi);
+		//const apiGetPolicy = this.publicApi.getPolicy.bind(this.publicApi);
+		const apiGetPolicy = this.publicApi.getPolicy;
 		this.publicApi.getPolicy = async () => {
-			return this.policy = await apiGetPolicy();
+			return this.policy = Policy.parse(await apiGetPolicy());
 		}
 
 		return this.publicApi;
@@ -52,7 +53,7 @@ export default class KeystoreClient {
 
 	/** @param {string} methodName
 	 *
-	 * @returns {function} The proxy method for methodName
+	 * @returns {function} Trying to call this method in the iframe and open a window if user interaction is required.
 	 * */
 	_proxyMethod(methodName) {
 		return async (...args) => {
@@ -61,11 +62,12 @@ export default class KeystoreClient {
 
 			const method = this.embeddedApi[methodName].bind(this.embeddedApi);
 
+			// if we know that user interaction is needed, we'll do a secure request, i.e. do a redirect
 			if (this.policy && this.policy.needsUi(methodName, args))
 				return await method.secure.call(args);
 
 			try {
-				return await method.call(args);
+				return await method(...args);
 			}
 			catch (error) {
 				if (error === 'needs-ui') {
@@ -80,11 +82,15 @@ export default class KeystoreClient {
 		}
 	}
 
+	/** @param {string} methodName
+	 *
+	 * @returns {function} Call this method in a new window
+	 * */
 	_proxySecureMethod(methodName) {
 		return async (...args) => {
 			if (this.popup) { // window.open
 				const apiWindow = window.open(this._keystoreSrc);
-				const secureApi = await KeystoreClient._getApi(apiWindow);
+				const secureApi = await this._getApi(apiWindow);
 				const result = await secureApi[methodName](...args);
 				apiWindow.close();
 				return result;
@@ -100,7 +106,7 @@ export default class KeystoreClient {
 		return new Promise((resolve, reject) => { resolve(window.confirm("You will be forwarded to securely confirm this action.")); });
 	}
 
-	static async _getApi(origin) {
+	async _getApi(origin) {
 		return await RPC.Client(origin, 'KeystoreApi');
 	}
 
