@@ -1,5 +1,5 @@
 import { RPC } from '/libraries/boruca-messaging/src/boruca.js';
-import Policy from '/libraries/keystore/policy.js';
+import Policy from '/libraries/keystore/policies/policy.js';
 
 export default class KeystoreClient {
 	static async create(src, needUiCallback, usePopup = true) {
