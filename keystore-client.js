@@ -37,7 +37,7 @@ export default class KeystoreClient {
 		// keep track of policies
 		const apiAuthorize = this.publicApi.authorize.secure.bind(this.publicApi.secure);
 		this.publicApi.authorize = async requiredPolicy => {
-			const success = await apiAuthorize(requiredPolicy);
+			const success = apiAuthorize(requiredPolicy);
 			this.policy = success ? requiredPolicy : null;
 			return success;
 		}
@@ -55,23 +55,23 @@ export default class KeystoreClient {
 	 * @returns {function} The proxy method for methodName
 	 * */
 	_proxyMethod(methodName) {
-		return async () => {
-			if (this.policy && !this.policy.allows(methodName, arguments))
+		return async (...args) => {
+			if (this.policy && !this.policy.allows(methodName, args))
 				throw `Not allowed to call ${methodName}.`;
 
 			const method = this.embeddedApi[methodName].bind(this.embeddedApi);
 
-			if (this.policy && this.policy.needsUi(methodName, arguments))
-				return await method.secure.call(arguments);
+			if (this.policy && this.policy.needsUi(methodName, args))
+				return await method.secure.call(args);
 
 			try {
-				return await method.call(arguments);
+				return await method.call(args);
 			}
 			catch (error) {
 				if (error === 'needs-ui') {
 					const confirmed = await this.needUiCallback(methodName);
 					if (confirmed) {
-							return method.secure.call(arguments);
+							return method.secure.call(args);
 					}
 					else throw 'Denied by user';
 				}
@@ -81,12 +81,11 @@ export default class KeystoreClient {
 	}
 
 	_proxySecureMethod(methodName) {
-		return async () => {
+		return async (...args) => {
 			if (this.popup) { // window.open
 				const apiWindow = window.open(this._keystoreSrc);
 				const secureApi = await KeystoreClient._getApi(apiWindow);
-				const method = secureApi[methodName].bind(secureApi);
-				const result = await method.call(arguments);
+				const result = await secureApi[methodName](...args);
 				apiWindow.close();
 				return result;
 			} else { // top level navigation
