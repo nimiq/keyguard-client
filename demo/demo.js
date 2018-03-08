@@ -1,14 +1,14 @@
 import config from './config.js';
-import KeystoreClient from '../keystore-client.js';
-import WalletPolicy from '/libraries/keystore/policies/wallet-policy.js';
+import KeyguardClient from '../keyguard-client.js';
+import WalletPolicy from '/libraries/keyguard/policies/wallet-policy.js';
 
 (async function() {
-    console.log("Keystore client config: ", config);
+    console.log("Keyguard client config: ", config);
 
-    const keystoreApi = window.keystoreClient = await KeystoreClient.create(config.keystoreSrc);
-    console.log("Keystore client: ", keystoreApi);
+    const keyguardApi = window.keyguardClient = await KeyguardClient.create(config.keyguardSrc);
+    console.log("Keyguard client: ", keyguardApi);
 
-	const grantedPolicy = await keystoreApi.getPolicy();
+	const grantedPolicy = await keyguardApi.getPolicy();
     console.log("grantedPolicy", grantedPolicy);
 
     const requiredPolicy = new WalletPolicy(1000);
@@ -19,7 +19,7 @@ import WalletPolicy from '/libraries/keystore/policies/wallet-policy.js';
         authorize.addEventListener('click', async e => {
             requiredPolicy.limit = ~~limit.value
             console.log("requiredPolicy", requiredPolicy);
-        	if (!await keystoreApi.authorize(requiredPolicy)) {
+        	if (!await keyguardApi.authorize(requiredPolicy)) {
                 throw { message: "KeystoreClient: Policies don't match", policies: [requiredPolicy, grantedPolicy] }
             }
             else cont();
@@ -29,9 +29,9 @@ import WalletPolicy from '/libraries/keystore/policies/wallet-policy.js';
 
 async function cont() {
     console.log("Authorized! Continue...");
-    const keystoreApi = window.keystoreClient;
+    const keyguardApi = window.keyguardClient;
     request.style.display = "none";
 
-    const accounts = await keystoreApi.getAccounts();
+    const accounts = await keyguardApi.getAccounts();
     console.log(accounts);
 }
