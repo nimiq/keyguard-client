@@ -20,7 +20,7 @@ import WalletPolicy from '/libraries/keyguard/policies/wallet-policy.js';
             requiredPolicy.limit = ~~limit.value
             console.log("requiredPolicy", requiredPolicy);
         	if (!await keyguardApi.authorize(requiredPolicy)) {
-                throw { message: "KeystoreClient: Policies don't match", policies: [requiredPolicy, grantedPolicy] }
+                throw { message: "KeyguardClient: Policies don't match", policies: [requiredPolicy, grantedPolicy] }
             }
             else cont();
         });

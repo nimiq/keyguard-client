@@ -1,9 +1,9 @@
 import { RPC } from '/libraries/boruca-messaging/src/boruca.js';
 import Policy from '/libraries/keyguard/policy.js';
 
-export default class KeystoreClient {
+export default class KeyguardClient {
 	static async create(src, needUiCallback, usePopup = true) {
-		const client = new KeystoreClient(src, needUiCallback, usePopup);
+		const client = new KeyguardClient(src, needUiCallback, usePopup);
 		const wrappedApi = client._wrapApi();
 		return wrappedApi;
 	}
@@ -16,7 +16,7 @@ export default class KeystoreClient {
      * @param {boolean} usePopup
      */
 	constructor(src, needUiCallback, usePopup = true) {
-		this._keystoreSrc = src;
+		this._keyguardSrc = src;
 		this.popup = usePopup;
 		this.$iframe = this._createIframe();
 	    this.needUiCallback = needUiCallback || this._defaultUi.bind(this);
@@ -88,14 +88,14 @@ export default class KeystoreClient {
 	_proxySecureMethod(methodName) {
 		return async (...args) => {
 			if (this.popup) { // window.open
-				const apiWindow = window.open(this._keystoreSrc);
+				const apiWindow = window.open(this._keyguardSrc);
 				const secureApi = await this._getApi(apiWindow);
 				const result = await secureApi[methodName](...args);
 				apiWindow.close();
 				return result;
 			} else { // top level navigation
 				const returnTo = encodeURIComponent(window.location);
-				//window.location = `${ KeystoreClient.KEYSTORE_URL }?returnTo=${ returnTo }`;
+				//window.location = `${ KeyguardClient.KEYGUARD_URL }?returnTo=${ returnTo }`;
 				throw "not implemented";
 			}
 		}
@@ -106,14 +106,14 @@ export default class KeystoreClient {
 	}
 
 	async _getApi(origin) {
-		return await RPC.Client(origin, 'KeystoreApi');
+		return await RPC.Client(origin, 'KeyguardApi');
 	}
 
 	_createIframe(src) {
 		const $iframe = document.createElement('iframe');
 		$iframe.style.display = 'none';
-		$iframe.src = this._keystoreSrc;
-		$iframe.name = 'keystore';
+		$iframe.src = this._keyguardSrc;
+		$iframe.name = 'keyguard';
 		document.body.appendChild($iframe);
 		return $iframe;
 	}

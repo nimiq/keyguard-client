@@ -27,9 +27,9 @@ server {
 	# and here
 	root /home/...../nimiq.github.io/;
 
-	index keystore.html index.html index.htm;
+	index keyguard.html index.html index.htm;
 
 	location / {
-		try_files keystore.html $uri $uri/ =404;
+		try_files keyguard.html $uri $uri/ =404;
 	}
 }
