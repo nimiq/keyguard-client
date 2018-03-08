@@ -1,5 +1,5 @@
 const localConfig = {
-    keyguardSrc: `${location.origin}:8080/libraries/keyguard`
+    keyguardSrc: `${location.origin}:8080/libraries/keyguard/keyguard.html`
 }
 
 const alternativeConfig = {
@@ -7,7 +7,7 @@ const alternativeConfig = {
 }
 
 const liveConfig = {
-    keyguardSrc: 'https://secure.nimiq.com'
+    keyguardSrc: 'https://secure.nimiq.com/keyguard.html'
 }
 
 export default alternativeConfig;
