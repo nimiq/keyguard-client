@@ -92,30 +92,28 @@ export default class KeyguardClient {
 			if (this.popup) { // window.open
 				const targetUrl = `${this._keyguardSrc}/${methodName}.html`;
 				const apiWindow = window.open(targetUrl);
-				if(!apiWindow) throw new Error('Cannot open popup without user action');
+				if (!apiWindow) throw new Error('Cannot open popup without user action');
 				const processId = Random.getRandomId();
 				const data = { id: processId, arguments: args };
-				// TODO Test if we have race conditions (i.e. we'll miss the incoming msg in the apiWindow) > use boruca
+				// TODO Use boruca if we encounter race conditions (i.e. miss the first incoming msg in the apiWindow)
 				apiWindow.postMessage(data, this._keyguardOrigin);
-				const result = await this._getResult(processId);
-				apiWindow.close();
-				return result;
+				while(true) {
+					try {
+						const result = await this.embeddedApi.getResult(processId);
+						apiWindow.close();
+						return result;
+					} catch (e) {
+						if (e.type === 'try-again')
+							apiWindow.postMessage(e, this._keyguardOrigin);
+						else throw e;
+					}
+				}
 			} else { // top level navigation
 				const returnTo = encodeURIComponent(window.location);
 				//window.location = `${ KeyguardClient.KEYGUARD_URL }?returnTo=${ returnTo }`;
-				throw new Error(`Method not implemented: ${methodName}`);
+				throw new Error('Top level navigation not implemented. Use popup.');
 			}
 		}
-	}
-
-	_getResult(id) {
-		return new Promise((resolve, reject) => {
-			const onResult = result => {
-				this.eventClient.off(`result-of-${id}`, onResult);
-				resolve(result);
-			};
-			this.eventClient.on(`result-of-${id}`, onResult);
-		});
 	}
 
 	_defaultUi(methodName) {
