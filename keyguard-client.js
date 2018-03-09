@@ -62,7 +62,7 @@ export default class KeyguardClient {
 	_proxyMethod(methodName) {
 		return async (...args) => {
 			if (this.policy && !this.policy.allows(methodName, args))
-				throw `Not allowed to call ${methodName}.`;
+				throw new Error(`Not allowed to call ${methodName}.`);
 
 			const method = this.embeddedApi[methodName].bind(this.embeddedApi);
 
@@ -76,8 +76,15 @@ export default class KeyguardClient {
 			catch (error) {
 				if (error === 'needs-ui') {
 					const confirmed = await this.needUiCallback(methodName);
+<<<<<<< HEAD
 					if (!confirmed) throw 'Denied by user';
 					return method.secure.call(args);
+=======
+					if (confirmed) {
+							return method.secure.call(args);
+					}
+					else throw new Error('Denied by user');
+>>>>>>> 07b2da308323e857b9bdfbb787c9691c07cc7178
 				}
 				else throw error;
 			}
@@ -91,18 +98,25 @@ export default class KeyguardClient {
 	_proxySecureMethod(methodName) {
 		return async (...args) => {
 			if (this.popup) { // window.open
+<<<<<<< HEAD
 				const targetUrl = `${this._keyguardSrc}/${methodName}.html`;
 				const apiWindow = window.open(targetUrl);
 				const processId = Random.getRandomId();
 				const data = { processId, args };
 				apiWindow.postMessage(data, this._keyguardOrigin);
 				const result = await this._getResult(processId);
+=======
+				const apiWindow = window.open(this._keyguardSrc);
+				if(!apiWindow) throw new Error('Cannot open popup without user action');
+				const secureApi = await this._getApi(apiWindow);
+				const result = await secureApi[methodName](...args);
+>>>>>>> 07b2da308323e857b9bdfbb787c9691c07cc7178
 				apiWindow.close();
 				return result;
 			} else { // top level navigation
 				const returnTo = encodeURIComponent(window.location);
 				//window.location = `${ KeyguardClient.KEYGUARD_URL }?returnTo=${ returnTo }`;
-				throw "not implemented";
+				throw new Error(`Method not implemented: ${methodName}`);
 			}
 		}
 	}
@@ -123,8 +137,8 @@ export default class KeyguardClient {
 		return new Promise((resolve, reject) => { resolve(window.confirm("You will be forwarded to securely confirm this action.")); });
 	}
 
-	async _getApi(origin) {
-		return await RPC.Client(origin, 'KeyguardApi');
+	async _getApi(targetWindow) {
+		return await RPC.Client(targetWindow, 'KeyguardApi', (new URL(this._keyguardSrc)).origin);
 	}
 
 	_createIframe(src) {
