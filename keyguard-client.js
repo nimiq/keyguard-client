@@ -1,4 +1,4 @@
-import { RPC } from '/libraries/boruca-messaging/src/boruca.js';
+import { RPC, EventClient } from '/libraries/boruca-messaging/src/boruca.js';
 import Policy from '/libraries/keyguard/policy.js';
 import Random from '/libraries/nimiq-utils/random.js';
 
@@ -29,7 +29,6 @@ export default class KeyguardClient {
 	async _wrapApi() {
  		this.embeddedApi = await this._getApi(this.$iframe.contentWindow);
 		this.eventClient = EventClient.create(this.$iframe.contentWindow, this._keyguardOrigin);
-		this.embeddedApi.on('result', message => this._onResult(message.id, message.data));
 
         for (const methodName of this.embeddedApi.availableMethods) {
             const proxy = this._proxyMethod(methodName);
@@ -95,7 +94,8 @@ export default class KeyguardClient {
 				const apiWindow = window.open(targetUrl);
 				if(!apiWindow) throw new Error('Cannot open popup without user action');
 				const processId = Random.getRandomId();
-				const data = { processId, args };
+				const data = { id: processId, arguments: args };
+				// TODO Test if we have race conditions (i.e. we'll miss the incoming msg in the apiWindow) > use boruca
 				apiWindow.postMessage(data, this._keyguardOrigin);
 				const result = await this._getResult(processId);
 				apiWindow.close();
@@ -111,12 +111,10 @@ export default class KeyguardClient {
 	_getResult(id) {
 		return new Promise((resolve, reject) => {
 			const onResult = result => {
-				if (result.id === id) {
-					this.eventClient.off('result', onResult);
-					resolve(result.id, result.data);
-				}
+				this.eventClient.off(`result-of-${id}`, onResult);
+				resolve(result);
 			};
-			this.eventClient.on('result', onResult);
+			this.eventClient.on(`result-of-${id}`, onResult);
 		});
 	}
 

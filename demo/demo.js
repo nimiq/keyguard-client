@@ -2,6 +2,8 @@ import config from './config.js';
 import KeyguardClient from '../keyguard-client.js';
 import WalletPolicy from '/libraries/keyguard/policies/wallet-policy.js';
 
+request.style.display = "none";
+
 (async function() {
     console.log("Keyguard client config: ", config);
 
@@ -11,10 +13,11 @@ import WalletPolicy from '/libraries/keyguard/policies/wallet-policy.js';
 	const grantedPolicy = await keyguardApi.getPolicy();
     console.log("grantedPolicy", grantedPolicy);
 
-    const requiredPolicy = new WalletPolicy(1000);
-    console.log("requiredPolicy", requiredPolicy);
-
 	if (!requiredPolicy.equals(grantedPolicy)) {
+        const requiredPolicy = new WalletPolicy(100);
+        console.log("requiredPolicy", requiredPolicy);
+
+        console.log("Didn't get the right policy", grantedPolicy);
         request.style.display = "block";
         authorize.addEventListener('click', async e => {
             requiredPolicy.limit = ~~limit.value
