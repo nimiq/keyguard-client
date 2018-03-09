@@ -1,5 +1,6 @@
 import { RPC } from '/libraries/boruca-messaging/src/boruca.js';
 import Policy from '/libraries/keyguard/policy.js';
+import Random from '/libraries/nimiq-utils/random.js';
 
 export default class KeyguardClient {
 	static async create(src, needUiCallback, usePopup = true) {
@@ -17,6 +18,7 @@ export default class KeyguardClient {
      */
 	constructor(src, needUiCallback, usePopup = true) {
 		this._keyguardSrc = src;
+		this._keyguardOrigin = new URL(src).origin;
 		this.popup = usePopup;
 		this.$iframe = this._createIframe();
 	    this.needUiCallback = needUiCallback || this._defaultUi.bind(this);
@@ -26,6 +28,9 @@ export default class KeyguardClient {
 
 	async _wrapApi() {
  		this.embeddedApi = await this._getApi(this.$iframe.contentWindow);
+		this.eventClient = EventClient.create(this.$iframe.contentWindow, this._keyguardOrigin);
+		this.embeddedApi.on('result', message => this._onResult(message.id, message.data));
+
         for (const methodName of this.embeddedApi.availableMethods) {
             const proxy = this._proxyMethod(methodName);
             proxy.secure = this._proxySecureMethod(methodName);
@@ -61,7 +66,7 @@ export default class KeyguardClient {
 
 			const method = this.embeddedApi[methodName].bind(this.embeddedApi);
 
-			// if we know that user interaction is needed, we'll do a secure request, i.e. do a redirect
+			// if we know that user interaction is needed, we'll do a secure request, i.e. do a redirect/popup
 			if (this.policy && this.policy.needsUi(methodName, args))
 				return await method.secure.call(args);
 
@@ -71,10 +76,8 @@ export default class KeyguardClient {
 			catch (error) {
 				if (error === 'needs-ui') {
 					const confirmed = await this.needUiCallback(methodName);
-					if (confirmed) {
-							return method.secure.call(args);
-					}
-					else throw 'Denied by user';
+					if (!confirmed) throw 'Denied by user';
+					return method.secure.call(args);
 				}
 				else throw error;
 			}
@@ -88,9 +91,12 @@ export default class KeyguardClient {
 	_proxySecureMethod(methodName) {
 		return async (...args) => {
 			if (this.popup) { // window.open
-				const apiWindow = window.open(this._keyguardSrc);
-				const secureApi = await this._getApi(apiWindow);
-				const result = await secureApi[methodName](...args);
+				const targetUrl = `${this._keyguardSrc}/${methodName}.html`;
+				const apiWindow = window.open(targetUrl);
+				const processId = Random.getRandomId();
+				const data = { processId, args };
+				apiWindow.postMessage(data, this._keyguardOrigin);
+				const result = await this._getResult(processId);
 				apiWindow.close();
 				return result;
 			} else { // top level navigation
@@ -99,6 +105,18 @@ export default class KeyguardClient {
 				throw "not implemented";
 			}
 		}
+	}
+
+	_getResult(id) {
+		return new Promise((resolve, reject) => {
+			const onResult = result => {
+				if (result.id === id) {
+					this.eventClient.off('result', onResult);
+					resolve(result.id, result.data);
+				}
+			};
+			this.eventClient.on('result', onResult);
+		});
 	}
 
 	_defaultUi(methodName) {
