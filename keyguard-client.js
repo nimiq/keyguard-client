@@ -76,8 +76,15 @@ export default class KeyguardClient {
 			catch (error) {
 				if (error === 'needs-ui') {
 					const confirmed = await this.needUiCallback(methodName);
+<<<<<<< HEAD
 					if (!confirmed) throw 'Denied by user';
 					return method.secure.call(args);
+=======
+					if (confirmed) {
+							return method.secure.call(args);
+					}
+					else throw new Error('Denied by user');
+>>>>>>> 07b2da308323e857b9bdfbb787c9691c07cc7178
 				}
 				else throw error;
 			}
@@ -91,13 +98,19 @@ export default class KeyguardClient {
 	_proxySecureMethod(methodName) {
 		return async (...args) => {
 			if (this.popup) { // window.open
+<<<<<<< HEAD
 				const targetUrl = `${this._keyguardSrc}/${methodName}.html`;
 				const apiWindow = window.open(targetUrl);
-				if(!apiWindow) throw new Error('Cannot open popup without user action');
 				const processId = Random.getRandomId();
 				const data = { processId, args };
 				apiWindow.postMessage(data, this._keyguardOrigin);
 				const result = await this._getResult(processId);
+=======
+				const apiWindow = window.open(this._keyguardSrc);
+				if(!apiWindow) throw new Error('Cannot open popup without user action');
+				const secureApi = await this._getApi(apiWindow);
+				const result = await secureApi[methodName](...args);
+>>>>>>> 07b2da308323e857b9bdfbb787c9691c07cc7178
 				apiWindow.close();
 				return result;
 			} else { // top level navigation
