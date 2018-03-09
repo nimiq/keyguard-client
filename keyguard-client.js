@@ -107,7 +107,7 @@ export default class KeyguardClient {
 	}
 
 	async _getApi(targetWindow) {
-		return await RPC.Client(targetWindow, 'KeyguardApi');
+		return await RPC.Client(targetWindow, 'KeyguardApi', (new URL(this._keyguardSrc)).origin);
 	}
 
 	_createIframe(src) {
