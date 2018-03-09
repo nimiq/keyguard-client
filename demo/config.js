@@ -1,13 +1,13 @@
-const devConfig = {
+const localConfig = {
+    keyguardSrc: `${location.origin}:8080/libraries/keyguard`
+}
+
+const alternativeConfig = {
     keyguardSrc: `${location.origin}/libraries/keyguard/keyguard.html`
 }
 
-const localConfig = {
-
-}
-
 const liveConfig = {
-    keyguardSrc: 'https://secure.nimiq.com/keyguard.html'
+    keyguardSrc: 'https://secure.nimiq.com'
 }
 
-export default devConfig;
+export default alternativeConfig;
