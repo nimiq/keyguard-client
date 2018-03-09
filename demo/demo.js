@@ -4,37 +4,34 @@ import WalletPolicy from '/libraries/keyguard/policies/wallet-policy.js';
 
 request.style.display = "none";
 
-(async function() {
+async function ensureIsAuthorized(resolve, reject) {
     console.log("Keyguard client config: ", config);
 
     const keyguardApi = window.keyguardClient = await KeyguardClient.create(config.keyguardSrc);
     console.log("Keyguard client: ", keyguardApi);
 
 	const grantedPolicy = await keyguardApi.getPolicy();
-    console.log("grantedPolicy", grantedPolicy);
+    console.log("granted policy", grantedPolicy);
 
-	if (!requiredPolicy.equals(grantedPolicy)) {
+	if (!grantedPolicy) {
         const requiredPolicy = new WalletPolicy(100);
-        console.log("requiredPolicy", requiredPolicy);
-
-        console.log("Didn't get the right policy", grantedPolicy);
+        console.log("Authorize required policy", requiredPolicy);
         request.style.display = "block";
         authorize.addEventListener('click', async e => {
+            request.style.display = "none";
             requiredPolicy.limit = ~~limit.value
-            console.log("requiredPolicy", requiredPolicy);
+            console.log("required policy", requiredPolicy);
         	if (!await keyguardApi.authorize(requiredPolicy)) {
-                throw { message: "KeyguardClient: Policies don't match", policies: [requiredPolicy, grantedPolicy] }
+                reject({ message: "Authorize failed.", requiredPolicy });
             }
-            else cont();
+            else resolve(keyguardApi);
         });
-    } else cont();
-})();
+    } else resolve(keyguardApi);
+}
 
-async function cont() {
+new Promise(ensureIsAuthorized).then(async (keyguardApi) => {
     console.log("Authorized! Continue...");
-    const keyguardApi = window.keyguardClient;
-    request.style.display = "none";
 
     const accounts = await keyguardApi.getAccounts();
     console.log(accounts);
-}
+})

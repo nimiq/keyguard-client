@@ -28,7 +28,6 @@ export default class KeyguardClient {
 
 	async _wrapApi() {
  		this.embeddedApi = await this._getApi(this.$iframe.contentWindow);
-		this.eventClient = EventClient.create(this.$iframe.contentWindow, this._keyguardOrigin);
 
         for (const methodName of this.embeddedApi.availableMethods) {
             const proxy = this._proxyMethod(methodName);
@@ -61,7 +60,7 @@ export default class KeyguardClient {
 	_proxyMethod(methodName) {
 		return async (...args) => {
 			if (this.policy && !this.policy.allows(methodName, args))
-				throw new Error(`Not allowed to call ${methodName}.`);
+				throw `Not allowed to call ${methodName}.`;
 
 			const method = this.embeddedApi[methodName].bind(this.embeddedApi);
 
@@ -90,24 +89,12 @@ export default class KeyguardClient {
 	_proxySecureMethod(methodName) {
 		return async (...args) => {
 			if (this.popup) { // window.open
-				const targetUrl = `${this._keyguardSrc}/${methodName}.html`;
-				const apiWindow = window.open(targetUrl);
+				const apiWindow = window.open(this._keyguardSrc);
 				if (!apiWindow) throw new Error('Cannot open popup without user action');
-				const processId = Random.getRandomId();
-				const data = { id: processId, arguments: args };
-				// TODO Use boruca if we encounter race conditions (i.e. miss the first incoming msg in the apiWindow)
-				apiWindow.postMessage(data, this._keyguardOrigin);
-				while(true) {
-					try {
-						const result = await this.embeddedApi.getResult(processId);
-						apiWindow.close();
-						return result;
-					} catch (e) {
-						if (e.type === 'try-again')
-							apiWindow.postMessage(e, this._keyguardOrigin);
-						else throw e;
-					}
-				}
+				const secureApi = await this._getApi(apiWindow);
+				const result = await secureApi[methodName](...args);
+				apiWindow.close();
+				return result;
 			} else { // top level navigation
 				const returnTo = encodeURIComponent(window.location);
 				//window.location = `${ KeyguardClient.KEYGUARD_URL }?returnTo=${ returnTo }`;
@@ -121,7 +108,7 @@ export default class KeyguardClient {
 	}
 
 	async _getApi(targetWindow) {
-		return await RPC.Client(targetWindow, 'KeyguardApi', (new URL(this._keyguardSrc)).origin);
+		return await RPC.Client(targetWindow, 'KeyguardApi', this._keyguardOrigin);
 	}
 
 	_createIframe(src) {
