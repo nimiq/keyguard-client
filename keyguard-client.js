@@ -1,5 +1,5 @@
 import { RPC, EventClient } from '/libraries/boruca-messaging/src/boruca.js';
-import Policy from '/libraries/keyguard/policy.js';
+import Policy from '/libraries/keyguard/access-control/policy.js';
 import Random from '/libraries/nimiq-utils/random.js';
 
 export default class KeyguardClient {

@@ -1,6 +1,6 @@
 import config from './config.js';
 import KeyguardClient from '../keyguard-client.js';
-import WalletPolicy from '/libraries/keyguard/policies/wallet-policy.js';
+import WalletPolicy from '/libraries/keyguard/access-control/wallet-policy.js';
 
 request.style.display = "none";
 
