@@ -30,10 +30,9 @@ export default class KeyguardClient {
  		this.embeddedApi = await this._getApi(this.$iframe.contentWindow);
 
         for (const methodName of this.embeddedApi.availableMethods) {
-            const proxy = this._proxyMethod(methodName);
-            proxy.secure = this._proxySecureMethod(methodName);
-			proxy.isAllowed = () => (this.policy && this.policy.allows(methodName, arguments));
-            this.publicApi[methodName] = proxy;
+            const normalMethod = this._proxyMethod(methodName);
+			const secureMethod = this._proxySecureMethod(methodName);
+            this.publicApi[methodName] = this._bindMethods(normalMethod, secureMethod)
         }
 
 		// intercepting "authorize" and "getPolicy" for keeping an instance of the latest authorized policy
@@ -58,28 +57,27 @@ export default class KeyguardClient {
 	 * @returns {function} Trying to call this method in the iframe and open a window if user interaction is required.
 	 * */
 	_proxyMethod(methodName) {
-		return async (...args) => {
+		const proxy = async (...args) => {
 			if (this.policy && !this.policy.allows(methodName, args))
 				throw `Not allowed to call ${methodName}.`;
 
-			const method = this.embeddedApi[methodName].bind(this.embeddedApi);
-
-			// if we know that user interaction is needed, we'll do a secure request, i.e. do a redirect/popup
+			// if we know that user interaction is needed, we'll do a secure request right away, i.e. a redirect/popup
 			if (this.policy && this.policy.needsUi(methodName, args))
-				return await method.secure.call(args);
+				return await proxy.secure.call(args);
 
 			try {
-				return await method(...args);
+				return await this.embeddedApi[methodName](...args);
 			}
 			catch (error) {
 				if (error === 'needs-ui') {
 					const confirmed = await this.needUiCallback(methodName);
 					if (!confirmed) throw 'Denied by user';
-					return method.secure.call(args);
+					return proxy.secure.call(args);
 				}
 				else throw error;
 			}
 		}
+		return proxy;
 	}
 
 	/** @param {string} methodName
@@ -101,6 +99,13 @@ export default class KeyguardClient {
 				throw new Error('Top level navigation not implemented. Use popup.');
 			}
 		}
+	}
+
+	_bindMethods(normalMethod, secureMethod) {
+		const method = normalMethod;
+		method.secure = secureMethod;
+		method.isAllowed = () => (this.policy && this.policy.allows(methodName, arguments));
+		return method;
 	}
 
 	_defaultUi(methodName) {
