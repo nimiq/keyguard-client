@@ -21,7 +21,7 @@ export default class KeyguardClient {
 		this._keyguardOrigin = new URL(src).origin;
 		this.popup = usePopup;
 		this.$iframe = this._createIframe();
-	    this.needUiCallback = needUiCallback || this._defaultUi.bind(this);
+	    this.needUiCallback = needUiCallback;
 	    this.publicApi = {};
 		this.policy = null;
 	}
@@ -61,18 +61,23 @@ export default class KeyguardClient {
 			if (this.policy && !this.policy.allows(methodName, args))
 				throw `Not allowed to call ${methodName}.`;
 
-			// if we know that user interaction is needed, we'll do a secure request right away, i.e. a redirect/popup
-			if (this.policy && this.policy.needsUi(methodName, args))
-				return await proxy.secure.call(args);
-
 			try {
+				// if we know that user interaction is needed, we'll do a secure request right away, i.e. a redirect/popup
+				if (this.policy && this.policy.needsUi(methodName, args))
+					return await proxy.secure.call(args);
+
 				return await this.embeddedApi[methodName](...args);
 			}
 			catch (error) {
 				if (error === 'needs-ui') {
-					const confirmed = await this.needUiCallback(methodName);
-					if (!confirmed) throw 'Denied by user';
-					return proxy.secure.call(args);
+					if (this.needUiCallback instanceof Function) {
+						return await new Promise((resolve, reject) => {
+							this.needUiCallback(methodName, confirmed => {
+								if (!confirmed) reject('Denied by user');
+								resolve(proxy.secure.call(args));
+							});
+						});
+					} else throw new Error(`User interaction is required to call "${ methodName }". So you need to call this method from a event handler, e.g. a click event.`);
 				}
 				else throw error;
 			}
@@ -88,7 +93,7 @@ export default class KeyguardClient {
 		return async (...args) => {
 			if (this.popup) { // window.open
 				const apiWindow = window.open(this._keyguardSrc);
-				if (!apiWindow) throw new Error('Cannot open popup without user action');
+				if (!apiWindow) throw 'needs-ui'
 				const secureApi = await this._getApi(apiWindow);
 				const result = await secureApi[methodName](...args);
 				apiWindow.close();
@@ -108,9 +113,9 @@ export default class KeyguardClient {
 		return method;
 	}
 
-	_defaultUi(methodName) {
-		return new Promise((resolve, reject) => { resolve(window.confirm("You will be forwarded to securely confirm this action.")); });
-	}
+	// _defaultUi(methodName) {
+	// 	return new Promise((resolve, reject) => { resolve(window.confirm("You will be forwarded to securely confirm this action.")); });
+	// }
 
 	async _getApi(targetWindow) {
 		return await RPC.Client(targetWindow, 'KeyguardApi', this._keyguardOrigin);
