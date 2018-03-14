@@ -77,7 +77,7 @@ export default class KeyguardClient {
 								resolve(proxy.secure.call(args));
 							});
 						});
-					} else throw new Error(`User interaction is required to call "${ methodName }". So you need to call this method from a event handler, e.g. a click event.`);
+					} else throw new Error(`User interaction is required to call "${ methodName }". You need to call this method from an event handler, e.g. a click event.`);
 				}
 				else throw error;
 			}
