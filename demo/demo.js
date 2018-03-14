@@ -34,15 +34,15 @@ async function ensureIsAuthorized(resolve, reject) {
 new Promise(ensureIsAuthorized).then(async (keyguardApi) => {
     console.log("Authorized! Continue...");
 
-    let accounts = await keyguardApi.getAccounts();
+    let accounts = await keyguardApi.get();
 
     console.log(`Accounts: ${JSON.stringify(accounts)}`);
 
-    const volatileAccounts = await keyguardApi.createVolatileAccounts(2);
+    const volatileAccounts = await keyguardApi.createVolatile(2);
 
     console.log(`Volatile accounts: ${volatileAccounts}`);
 
-    await keyguardApi.persistAccount(volatileAccounts[0], AccountType.Low);
+    await keyguardApi.persist(volatileAccounts[0], AccountType.Low);
 
     accounts = await keyguardApi.getAccounts();
 

@@ -1,6 +1,6 @@
 import { RPC, EventClient } from '/libraries/boruca-messaging/src/boruca.js';
 import Policy from '/libraries/keyguard/access-control/policy.js';
-import Random from '/libraries/nimiq-utils/random.js';
+import { NoUIError } from '../errors/index.js';
 
 export default class KeyguardClient {
 	static async create(src, needUiCallback, usePopup = true) {
@@ -59,21 +59,21 @@ export default class KeyguardClient {
 	_proxyMethod(methodName) {
 		const proxy = async (...args) => {
 			if (this.policy && !this.policy.allows(methodName, args))
-				throw `Not allowed to call ${methodName}.`;
+				throw new Error(`Not allowed to call ${methodName}.`);
 
 			try {
 				// if we know that user interaction is needed, we'll do a secure request right away, i.e. a redirect/popup
 				if (this.policy && this.policy.needsUi(methodName, args))
-					return await proxy.secure.call(args);
+					return await proxy.secure(...args);
 
 				return await this.embeddedApi[methodName](...args);
 			}
 			catch (error) {
-				if (error === 'needs-ui') {
+				if (error.code === NoUIError.code) {
 					if (this.needUiCallback instanceof Function) {
 						return await new Promise((resolve, reject) => {
 							this.needUiCallback(methodName, confirmed => {
-								if (!confirmed) reject('Denied by user');
+								if (!confirmed) reject(new Error('Denied by user'));
 								resolve(proxy.secure.call(args));
 							});
 						});
