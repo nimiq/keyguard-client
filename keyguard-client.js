@@ -1,6 +1,6 @@
 import { RPC, EventClient } from '/libraries/boruca-messaging/src/boruca.js';
 import Policy from '/libraries/keyguard/access-control/policy.js';
-import { NoUIError } from '../errors/index.js';
+import { NoUIError } from '/libraries/keyguard/errors/index.js';
 
 export default class KeyguardClient {
 	static async create(src, needUiCallback, usePopup = true) {
