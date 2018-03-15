@@ -2,20 +2,13 @@ import config from './config.js';
 import KeyguardClient from '../keyguard-client.js';
 import WalletPolicy from '/libraries/keyguard/access-control/wallet-policy.js';
 import SafePolicy from '/libraries/keyguard/access-control/safe-policy.js';
+import Policy from '/libraries/keyguard/access-control/policy.js';
 import * as AccountType from '/libraries/keyguard/accounts/account-type.js';
 
 request.style.display = "none";
 
-async function ensureIsAuthorized(resolve, reject) {
-    console.log("Keyguard client config: ", config);
-
-    const keyguardApi = window.keyguardClient = await KeyguardClient.create(config.keyguardSrc);
-    console.log("Keyguard client: ", keyguardApi);
-
-	const grantedPolicy = await keyguardApi.getPolicy();
-    console.log("granted policy", grantedPolicy);
-
-	if (!grantedPolicy) {
+/*function ensureIsAuthorized() {
+   if (!assumedPolicy.equals(grantedPolicy)) {
         const requiredPolicy = new SafePolicy();
         console.log("Authorize required policy", requiredPolicy);
         request.style.display = "block";
@@ -28,10 +21,14 @@ async function ensureIsAuthorized(resolve, reject) {
             }
             else resolve(keyguardApi);
         });
-    } else resolve(keyguardApi);
-}
+    } else resolve(keyguardApi);*/
 
-new Promise(ensureIsAuthorized).then(async (keyguardApi) => {
+(async function () {
+    console.log("Keyguard client config: ", config);
+
+    const keyguardApi = window.keyguardClient = await KeyguardClient.create(config.keyguardSrc, new SafePolicy());
+    console.log("Keyguard client: ", keyguardApi);
+
     console.log("Authorized! Continue...");
 
     let accounts = await keyguardApi.get();
@@ -47,5 +44,4 @@ new Promise(ensureIsAuthorized).then(async (keyguardApi) => {
     accounts = await keyguardApi.get();
 
     console.log(`Accounts after persisting first volatile account: ${JSON.stringify(accounts)}`);
-
-})
+})();

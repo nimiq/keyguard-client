@@ -3,18 +3,18 @@ import Policy from '/libraries/keyguard/access-control/policy.js';
 import { NoUIError } from '/libraries/keyguard/errors/index.js';
 
 export default class KeyguardClient {
-	static async create(src, needUiCallback, usePopup = true) {
+	static async create(src, assumedPolicy, needUiCallback, usePopup = true) {
 		const client = new KeyguardClient(src, needUiCallback, usePopup);
-		this._wrappedApi = client._wrapApi();
-		return this._wrappedApi;
+		this._wrappedApi = new Promise(async resolve => {
+		    const wrappedApi = await client._wrapApi();
+			await client._authorize.bind(client)(assumedPolicy);
+			resolve(wrappedApi);
+        });
+		return await this._wrappedApi;
 	}
 
-    static getApi() {
-		if (!this._wrappedApi) {
-			throw new Error('Api was not yet created. Call KeycuardClient.create first.');
-		} else {
-			return this._wrappedApi;
-		}
+    static async getApi() {
+		return await this._wrappedApi;
 	}
 
     /**
@@ -120,6 +120,18 @@ export default class KeyguardClient {
 		method.isAllowed = () => (this.policy && this.policy.allows(methodName, arguments));
 		return method;
 	}
+
+    async _authorize(assumedPolicy) {
+        let grantedPolicy = await this.publicApi.getPolicy();
+        grantedPolicy = grantedPolicy && Policy.parse(grantedPolicy);
+        console.log(`Got policy: ${grantedPolicy}`);
+
+        if (!assumedPolicy.equals(grantedPolicy)) {
+            if (!await this.publicApi.authorize(assumedPolicy)) {
+                throw new Error('Authorization failed');
+            }
+        }
+    }
 
 	// _defaultUi(methodName) {
 	// 	return new Promise((resolve, reject) => { resolve(window.confirm("You will be forwarded to securely confirm this action.")); });
