@@ -5,8 +5,16 @@ import { NoUIError } from '/libraries/keyguard/errors/index.js';
 export default class KeyguardClient {
 	static async create(src, needUiCallback, usePopup = true) {
 		const client = new KeyguardClient(src, needUiCallback, usePopup);
-		const wrappedApi = client._wrapApi();
-		return wrappedApi;
+		this._wrappedApi = client._wrapApi();
+		return this._wrappedApi;
+	}
+
+    static getApi() {
+		if (!this._wrappedApi) {
+			throw new Error('Api was not yet created. Call KeycuardClient.create first.');
+		} else {
+			return this._wrappedApi;
+		}
 	}
 
     /**
