@@ -44,7 +44,7 @@ new Promise(ensureIsAuthorized).then(async (keyguardApi) => {
 
     await keyguardApi.persist(volatileAccounts[0], AccountType.Low);
 
-    accounts = await keyguardApi.getAccounts();
+    accounts = await keyguardApi.get();
 
     console.log(`Accounts after persisting first volatile account: ${JSON.stringify(accounts)}`);
 
