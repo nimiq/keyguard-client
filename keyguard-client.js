@@ -5,16 +5,9 @@ import { NoUIError } from '/libraries/keyguard/errors/index.js';
 export default class KeyguardClient {
 	static async create(src, assumedPolicy, needUiCallback, usePopup = true) {
 		const client = new KeyguardClient(src, needUiCallback, usePopup);
-		this._wrappedApi = new Promise(async resolve => {
-		    const wrappedApi = await client._wrapApi();
-			await client._authorize.bind(client)(assumedPolicy);
-			resolve(wrappedApi);
-        });
-		return await this._wrappedApi;
-	}
-
-    static async getApi() {
-		return await this._wrappedApi;
+		this._wrappedApi = await client._wrapApi();
+		await client._authorize.bind(client)(assumedPolicy);
+		return this._wrappedApi;
 	}
 
     /**
@@ -101,7 +94,7 @@ export default class KeyguardClient {
 		return async (...args) => {
 			if (this.popup) { // window.open
 				const apiWindow = window.open(this._keyguardSrc);
-				if (!apiWindow) throw 'needs-ui'
+				if (!apiWindow) throw new Error('keyguard window could not be opened');
 				const secureApi = await this._getApi(apiWindow);
 				const result = await secureApi[methodName](...args);
 				apiWindow.close();
