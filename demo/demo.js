@@ -3,7 +3,7 @@ import KeyguardClient from '../keyguard-client.js';
 import WalletPolicy from '/libraries/keyguard/access-control/wallet-policy.js';
 import SafePolicy from '/libraries/keyguard/access-control/safe-policy.js';
 import Policy from '/libraries/keyguard/access-control/policy.js';
-import * as AccountType from '/libraries/keyguard/accounts/account-type.js';
+import * as Keytype from '/libraries/keyguard/keys/keytype.js';
 
 request.style.display = "none";
 
@@ -35,13 +35,13 @@ request.style.display = "none";
 
     console.log(`Accounts: ${JSON.stringify(accounts)}`);
 
-    const volatileAccounts = await keyguardApi.createVolatile(2);
+    /*const volatileAccounts = await keyguardApi.createVolatile(2);
 
     console.log(`Volatile accounts: ${volatileAccounts}`);
 
-    await keyguardApi.persist(volatileAccounts[0], AccountType.Low);
+    await keyguardApi.persist(volatileAccounts[0], Keytype.Low);
 
     accounts = await keyguardApi.get();
 
-    console.log(`Accounts after persisting first volatile account: ${JSON.stringify(accounts)}`);
+    console.log(`Accounts after persisting first volatile account: ${JSON.stringify(accounts)}`);*/
 })();
