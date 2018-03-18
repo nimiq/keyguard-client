@@ -13,7 +13,7 @@ export default class KeyguardClient {
     /**
 	 * @private
 	 *
-     * @param {function} src URI of secure origin aka key guard aka key dude.
+     * @param {string} src URI of secure origin aka key guard aka key dude.
      * @param {function} needUiCallback
      * @param {boolean} usePopup
      */
