@@ -136,7 +136,6 @@ export default class KeyguardClient {
 
 	_createIframe(src) {
 		const $iframe = document.createElement('iframe');
-		$iframe.style.display = 'none';
 		$iframe.src = this._keyguardSrc;
 		$iframe.name = 'keyguard';
 		document.body.appendChild($iframe);
