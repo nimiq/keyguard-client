@@ -3,8 +3,8 @@ import Policy from '/libraries/keyguard/access-control/policy.js';
 import { NoUIError } from '/libraries/keyguard/errors/index.js';
 
 export default class KeyguardClient {
-	static async create(src, assumedPolicy, needUiCallback, usePopup = true) {
-		const client = new KeyguardClient(src, needUiCallback, usePopup);
+	static async create(src, assumedPolicy, getState, needUiCallback, usePopup = true) {
+		const client = new KeyguardClient(src, getState, needUiCallback, usePopup);
 		this._wrappedApi = await client._wrapApi();
 		await client._authorize.bind(client)(assumedPolicy);
 		return this._wrappedApi;
@@ -14,10 +14,11 @@ export default class KeyguardClient {
 	 * @private
 	 *
      * @param {string} src URI of secure origin aka key guard aka key dude.
+     * @param {() => StateObject} getState function which returns the state
      * @param {function} needUiCallback
      * @param {boolean} usePopup
      */
-	constructor(src, needUiCallback, usePopup = true) {
+	constructor(src, getState, needUiCallback, usePopup = true) {
 		this._keyguardSrc = src;
 		this._keyguardOrigin = new URL(src).origin;
 		this.popup = usePopup;
@@ -25,6 +26,7 @@ export default class KeyguardClient {
 	    this.needUiCallback = needUiCallback;
 	    this.publicApi = {};
 		this.policy = null;
+		this.getState = getState;
 	}
 
 	async _wrapApi() {
@@ -33,7 +35,7 @@ export default class KeyguardClient {
         for (const methodName of this.embeddedApi.availableMethods) {
             const normalMethod = this._proxyMethod(methodName);
 			const secureMethod = this._proxySecureMethod(methodName);
-            this.publicApi[methodName] = this._bindMethods(normalMethod, secureMethod)
+            this.publicApi[methodName] = this._bindMethods(methodName, normalMethod, secureMethod);
         }
 
 		// intercepting "authorize" and "getPolicy" for keeping an instance of the latest authorized policy
@@ -43,12 +45,12 @@ export default class KeyguardClient {
 			const success = await apiAuthorize(requiredPolicy);
 			this.policy = success ? requiredPolicy : null;
 			return success;
-		}
+		};
 
 		const apiGetPolicy = this.publicApi.getPolicy;
 		this.publicApi.getPolicy = async () => {
 			return this.policy = Policy.parse(await apiGetPolicy());
-		}
+		};
 
 		return this.publicApi;
 	}
@@ -59,12 +61,12 @@ export default class KeyguardClient {
 	 * */
 	_proxyMethod(methodName) {
 		const proxy = async (...args) => {
-			if (this.policy && !this.policy.allows(methodName, args))
-				throw new Error(`Not allowed to call ${methodName}.`);
+			if (this.policy && !this.policy.allows(methodName, args, this.getState()))
+				throw new Error(`Not allowed to call ${methodName}.`)
 
 			try {
 				// if we know that user interaction is needed, we'll do a secure request right away, i.e. a redirect/popup
-				if (this.policy && this.policy.needsUi(methodName, args))
+				if (this.policy && this.policy.needsUi(methodName, args, this.getState()))
 					return await proxy.secure(...args);
 
 				return await this.embeddedApi[methodName](...args);
@@ -82,7 +84,8 @@ export default class KeyguardClient {
 				}
 				else throw error;
 			}
-		}
+		};
+
 		return proxy;
 	}
 
@@ -107,10 +110,10 @@ export default class KeyguardClient {
 		}
 	}
 
-	_bindMethods(normalMethod, secureMethod) {
+	_bindMethods(methodName, normalMethod, secureMethod) {
 		const method = normalMethod;
 		method.secure = secureMethod;
-		method.isAllowed = () => (this.policy && this.policy.allows(methodName, arguments));
+		method.isAllowed = () => (this.policy && this.policy.allows(methodName, arguments, this.getState()));
 		return method;
 	}
 
