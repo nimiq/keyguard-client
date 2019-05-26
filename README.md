@@ -1,1 +1,3 @@
+Deprecated
+
 # keyguard-client
